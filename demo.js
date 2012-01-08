@@ -1,11 +1,13 @@
 var database = new JSCacheDB("todoDatabase");
 
 function init() {
-  database.onrefresh = displayTodos;
-  database.onerror = function(message,context) {
+  database.setOnRefresh(displayTodos);
+  database.setOnFailure(function(message,context) {
     alert("Error: "+message);
-  }
-  database.open("1.17",{"todo":["ID","done"]});
+  });
+  database.setSyncInterval(20000);
+  database.open("1.21",{"todo":["ID","done"]});
+  database.setupKeyGenerator("todo");
 }
 
 window.addEventListener("DOMContentLoaded", init, false);

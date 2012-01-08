@@ -49,7 +49,7 @@ function JSCacheDB(name) {
 
   // to be filled by user
   onrefresh = function(store){}
-  onerror = function(message,context){alert("Error in CachedDatabase: "+message);}
+  onfailure = function(message,context){alert("Error in CachedDatabase: "+message);}
   ononline = function() {}
   onoffline = function() {}
 
@@ -57,8 +57,8 @@ function JSCacheDB(name) {
     onrefresh = callback;
   }
 
-  this.setOnError = function(callback) {
-    onerror = callback;
+  this.setOnFailure = function(callback) {
+    onfailure = callback;
   }
 
   this.setOnOnline = function(callback) {
@@ -100,7 +100,7 @@ function JSCacheDB(name) {
         }
 
         if(schema[storeName].length == 0) {
-          onerror("Need specification of primary index for "+storeName);
+          onfailure("Need specification of primary index for "+storeName);
         }
         else {
           var store = db.createObjectStore(storeName, {keyPath: schema[storeName][0]});
@@ -133,7 +133,7 @@ function JSCacheDB(name) {
     }
 
     request.onerror = function(e) {
-      onerror("Local storage could not be opened", e);
+      onfailure("Local storage could not be opened", e);
     };  
   }
 
@@ -145,14 +145,14 @@ function JSCacheDB(name) {
     var rangeReq = rangeStore.index("store").openCursor(keyRange);
 
     rangeReq.onerror = function(e) {
-      onerror("Cannot insert more new data into "+store+" until next synchronization", e);
+      onfailure("Cannot insert more new data into "+store+" until next synchronization", e);
     }
 
     rangeReq.onsuccess = function(e) {
       var result = e.target.result;
       if(!!result == false) {
         if(object[db.schema[store][0]] == null) {
-          onerror("Cannot insert more new data into "+store+" until next synchronization", e);
+          onfailure("Cannot insert more new data into "+store+" until next synchronization", e);
         }
         return;
       }
@@ -187,12 +187,12 @@ function JSCacheDB(name) {
 
           request.onerror = function(e) {
             trans.abort();
-            onerror("Cannot add object to local storage", e);
+            onfailure("Cannot add object to local storage", e);
           };
 
           requestMod.onerror = function(e) {
             trans.abort();
-            onerror("Cannot add object to local mod storage", e);
+            onfailure("Cannot add object to local mod storage", e);
           };
         }
 
@@ -218,22 +218,37 @@ function JSCacheDB(name) {
     }
     else {
       // do update
-      var trans = db.transaction([store,store+modSuffix], IDBTransaction.READ_WRITE, 0);
-      var request = trans.objectStore(store).put(object);
-      var requestMod = trans.objectStore(store+modSuffix).add(object);
+      var trans = db.transaction([store], IDBTransaction.READ_WRITE, 0);
 
-      request.onsuccess = function(e) {
-        onrefresh(store);
+      // request old object
+      var getReq = trans.objectStore(store).get(object[db.schema[store][0]]);
+
+      getReq.onerror = function(e) {
+        onfailure("Cannot request old object from local storage", e);
       };
 
-      request.onerror = function(e) {
-        trans.abort();
-        onerror("Cannot update object in local storage", e);
-      };
+      getReq.onsuccess = function(e) {
+        var oldObject = e.target.result;
+        var request = trans.objectStore(store).put(object);
 
-      requestMod.onerror = function(e) {
-        // no error: object was already modified
-      };
+        request.onsuccess = function(e) {
+          onrefresh(store);
+          var modTrans = db.transaction([store+modSuffix], 
+              IDBTransaction.READ_WRITE, 0);
+          var requestMod = modTrans.objectStore(store+modSuffix).add(oldObject);
+          requestMod.onerror = function(e) {
+            // no error: object was already modified
+          };
+
+          requestMod.onsuccess = function(e) {
+          }
+        };
+
+        request.onerror = function(e) {
+          modTrans.abort();
+          onfailure("Cannot update object in local storage", e);
+        };
+      }
     }
   }
 
@@ -262,7 +277,7 @@ function JSCacheDB(name) {
     };
 
     request.onerror = function(e) {
-      onerror("Cannot get object with primary key "+ID+" from local storage "+store, e);
+      onfailure("Cannot get object with primary key "+ID+" from local storage "+store, e);
     }
   }
 
@@ -291,7 +306,7 @@ function JSCacheDB(name) {
     };
 
     cursorRequest.onerror = function(e) {
-      onerror("Cannot get objects from local storage "+store, e);
+      onfailure("Cannot get objects from local storage "+store, e);
     }
   }
 
@@ -323,7 +338,7 @@ function JSCacheDB(name) {
           }
         }
         else if(ajaxReq.status != 200) {
-          onerror("Communication was established, but failed with HTTP error code "+ajaxReq.status,ajaxReq);
+          onfailure("Communication was established, but failed with HTTP error code "+ajaxReq.status,ajaxReq);
         }
         else {
           if(online != true) {
@@ -334,7 +349,7 @@ function JSCacheDB(name) {
           try {
             callback(JSON.parse(ajaxReq.responseText));
           } catch (e) {
-            onerror("Cannot parse answer "+ajaxReq.responseText+" for request "+url, e);
+            onfailure("Cannot parse answer "+ajaxReq.responseText+" for request "+url, e);
           }
         }
       }
@@ -350,7 +365,7 @@ function JSCacheDB(name) {
     var request = trans.objectStore(store+modSuffix).delete(ID);
 
     request.onerror = function(e) {
-      onerror("Cannot mark object of "+store+" with primary key "+ID+" as being stored", e);
+      onfailure("Cannot mark object of "+store+" with primary key "+ID+" as being stored", e);
     }
 
     request.onsuccess = function(e) {
@@ -369,6 +384,9 @@ function JSCacheDB(name) {
           empty = false;
         }
       }
+      
+      // primary key is necessary
+      diff[db.schema[store][0]] = newObject[db.schema[store][0]];
 
       if(empty) {
         markAsBeingStored(store,oldObject[db.schema[store][0]],callback);
@@ -380,7 +398,7 @@ function JSCacheDB(name) {
             markAsBeingStored(store,oldObject[db.schema[store][0]],callback);
           }
           else if(result.result == "failed") {
-            onerror("Cannot store object to server. Cause: "+result.cause, result);
+            onfailure("Cannot store object to server. Cause: "+result.cause, result);
           }
         });
       }
@@ -433,25 +451,24 @@ function JSCacheDB(name) {
         }
 
         request.onerror = function(e) {
-          onerror("Cannot insert object from server into local storage "+store, e);
+          onfailure("Cannot insert object from server into local storage "+store, e);
         }
       }
     });
   }
 
   function requestKeyRange(store) {
-    alert("Request new key range for "+store);
     ajaxRequest('reserve',store,{blockSize:insertKeyBlockSize},function(result){
       if(result['store'] == store) {
         var trans = db.transaction([ranges], IDBTransaction.READ_WRITE, 0);
         var rangeStore = trans.objectStore(ranges);
         var request = rangeStore.put(result);
         request.onerror = function(e) {
-          onerror("Cannot store new insertion range for local storage "+store, e);
+          onfailure("Cannot store new insertion range for local storage "+store, e);
         }
       }
       else {
-        onerror("Cannot reserve new insertion range for local storage "+store, e);
+        onfailure("Cannot reserve new insertion range for local storage "+store, e);
       }
     });
   }
