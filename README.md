@@ -19,27 +19,23 @@ The integration of JSCacheDB into your application consists of the following thr
 An important design goal was to provide the possiblity to integrate JSCacheDB into existing applications. This makes an existing online web application an offline web application. Therefore changes to an existing database model should be minimal, but you have to look closely at your use-cases in order to prevent data corruption. If two parties can write to the database at the same time, but one could be offline, it could work on an old state of the data. Your application has to ensure, that changes to an old data state would seamlessly integrate into the new data state at the time of synchronization. A few common pitfalls are described in a seperate section.
 
 ### Initialization
-  var database = new JSCacheDB("nameOfYourJSCacheDB");
-  database.open("1.17",{
-        "yourFirstStore":["ID"],
-        "anotherStore":["ID","anotherIndexedField"]
-      },function(){
-        alert("Database has been opened");
-      });
+    var database = new JSCacheDB("nameOfYourJSCacheDB");
+    database.open("1.17",{
+          "yourFirstStore":["ID"],
+          "anotherStore":["ID","anotherIndexedField"]
+        },function(){
+          alert("Database has been opened");
+        });
 
 The open method requires a version string and a database scheme. Optionally you can provide a callback that is called after the database has been opened.
 
-The version string is required, because you do not have direct access to the users browser and therefore you cannot alter the database scheme directly (as you would do e.g. in mySQL with ALTER TABLE). Instead you have to provide a new version string each time you alter the database scheme. If the version of the users database does not fit the given one, the database will be reinitialized to the new scheme.
+The version string is required, because you do not have direct access to the users browser and therefore you cannot alter the database scheme directly (as you would do e.g. in mySQL with ALTER TABLE). Instead you have to provide a new version string each time you alter the database scheme. If the version of the users database does not fit the given one, the database will be reinitialized to the new scheme. _WARNING:_ This includes deletion of all client-side data. This is normally not a problem, because it is only a replication of the server-side data, but it also includes not yet synchronized data that otherwise would not fit to your new database scheme.
 
-*WARNING:* This includes deletion of all client-side data. This is normally not a problem, because it is only a replication of the server-side data, but it also includes not yet synchronized data that otherwise would not fit to your new database scheme.
-
-In the database scheme there is a store for each database table you want to replicate. It has an associated array of fields for which you want to create a search index.
-
-*NOTE:* You do not have to name each single field, but only the fields you want to be able to search for!
+In the database scheme there is a store for each database table you want to replicate. It has an associated array of fields for which you want to create a search index. You do not have to name each single field, but only the fields you want to be able to search for!
 
 The first element of the array is a required primary key. Each store (and therefore each database table) has to have a single unique primary key. If you also want to insert new data into this table from your offline web application, this has to be an auto-incremented number (see below). If you do not want to do this, you can also use other unique fields.
 
-*IMPORTANT:* If your server-side database does not have a primary key constraint on the first element of the field array, you probably would corrupt your database. 
+_IMPORTANT:_ If your server-side database does not have a primary key constraint on the first element of the field array, you probably would corrupt your database. 
 
 ### Getting data
 The first step is to get data from your database and caching it so that the user can still access it while being offline. If you do not want the user to write to the database while being offline, you are lucky, because you do not have to fear data corruption. 
