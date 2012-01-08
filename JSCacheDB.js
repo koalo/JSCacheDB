@@ -1,7 +1,3 @@
-/**
- * @class
- * @classdesc Mapper for sale objects.
- */
 function JSCacheDB(name) {
   // Configuration and other constants
   var ranges = "reserved_insertion_ranges";

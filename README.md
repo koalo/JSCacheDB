@@ -42,7 +42,7 @@ An important design goal was to provide the possiblity to integrate JSCacheDB in
 - All tables require an unique primary key. Use a primary key constraint in your database!
 - If you want to insert new items into a table, the primary key of this table is required to be an auto-incremented integer.
 
-This is because of a common problem in database replication: How do you know that a specific key is unique, if you have no access to the database for a while? JSCacheDB solves this by reserving key ranges<sup>[1](#1)</sup> and only use reserved keys when inserting data. The server has to ensure that these keys are not used multiple times (i.e. shift the auto-increment value).
+This is because of a common problem in database replication: How do you know that a specific key is unique if you have no access to the database for a while? JSCacheDB solves this by reserving key ranges<sup>[1](#1)</sup> and only use reserved keys when inserting data. The server has to ensure that these keys are not used multiple times (i.e. shift the auto-increment value).
 
 JavaScript API
 --------------
@@ -122,7 +122,8 @@ This is not implemented, because you never know where your object is still avail
 
 Server-Side Interface
 ---------------------
-JSCacheDB will talk to your server via periodic AJAX request. A sample PHP interface to a mySQL database is implemented in JSCacheDBInterface.php.
+JSCacheDB will talk to your server via periodic AJAX requests.
+A sample PHP interface to a mySQL database is implemented in `JSCacheDBInterface.php`.
 
 Each POST request has a parameter `store` with the table to use and `action`. There are three actions:
 
@@ -133,7 +134,7 @@ Returns a JSON array of all objects in this table. Executed SQL command: `SELECT
 Store the object transferred as parameter `data` to the database. If the primary key already exists, an `UPDATE` is executed, otherwise an `INSERT`.
 
 ### reserve
-Reserve a new key range with block size given as blockSize attribute in `data`. Return a JSON object with min set to the smallest and max set to the biggest value of the reserved range. The server has to shift the auto-increment value to max+1. 
+Reserve a new key range with block size given as blockSize attribute in `data`. Return a JSON object with min set to the smallest and max set to the biggest value of the reserved range. The server has to shift the auto-increment value to `max+1`. 
 
 **IMPORTANT:** Other applications that write to the server have to use the auto-increment values (write NULL to the primary key field). At least for mySQL I found no possibility to ensure this at database level.
 
