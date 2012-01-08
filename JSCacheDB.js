@@ -4,11 +4,9 @@
  */
 function JSCacheDB(name) {
   // Configuration and other constants
-  var insertKeyBlockSize = 10;
-  var insertKeyAlarmThreshold = 5;
   var ranges = "reserved_insertion_ranges";
   var modSuffix = "_modified";
-  var serverURL = "/pos/backend/JSCacheDB/JSCacheDB.php" // TODO modifyable
+  var serverURL = "/pos/backend/JSCacheDB/JSCacheDBInterface.php" // TODO modifyable
 
   // Initialize database reference
   var dbname = name;
@@ -73,8 +71,8 @@ function JSCacheDB(name) {
     syncInterval = milliseconds;
   }
 
-  this.setupKeyGenerator = function(store) {
-    keyGenerators.push(store);
+  this.setupKeyGenerator = function(store,blockSize,alarmThreshold) {
+    keyGenerators.push({store:[blockSize,alarmThreshold]});
   }
 
   this.open = function(version,schema,callback) {
@@ -458,7 +456,8 @@ function JSCacheDB(name) {
   }
 
   function requestKeyRange(store) {
-    ajaxRequest('reserve',store,{blockSize:insertKeyBlockSize},function(result){
+    var data = {blockSize:keyGenerators[store][0]};
+    ajaxRequest('reserve',store,data,function(result){
       if(result['store'] == store) {
         var trans = db.transaction([ranges], IDBTransaction.READ_WRITE, 0);
         var rangeStore = trans.objectStore(ranges);
@@ -489,7 +488,7 @@ function JSCacheDB(name) {
     rangeReq.onsuccess = function(e) {
       var result = e.target.result;
       if(!!result == false) {
-        if(rangeSum <= insertKeyAlarmThreshold) {
+        if(rangeSum <= keyGenerators[store][1]) {
           // key range too small -> request new one
           requestKeyRange(store);
         }
@@ -521,8 +520,8 @@ function JSCacheDB(name) {
         retrieveFromServer(store);
       }
 
-      for(idx in keyGenerators) {
-        checkKeyRange(keyGenerators[idx]);
+      for(store in keyGenerators) {
+        checkKeyRange(store);
       }
     });
 

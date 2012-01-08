@@ -13,42 +13,72 @@ You have to look closely at your use-cases in order to prevent data corruption. 
 
 Basic Concepts
 --------------
+        -----------------------------
+        | Webbrowser                |
+        |                           |
+        |        Your Application   |
+        |               |           |
+        |           JSCacheDB       |
+        |               |           |
+        ----------------|------------
+                        |
+                        | unreliable connection
+                        |
+        ----------------|------------
+        | Server        |           |
+        |         JSON interface    |
+        |               |           |
+        |            Database       |
+        -----------------------------
+
 The integration of JSCacheDB into your application consists of the following three parts:
 
 - Think about your use-cases: Is there the possibility of data corruption?
-- Implement the server side and JSON based interface to your database (in Ruby on Rails, PHP, JSP...).
+- Setup the server-side interface to your database.
 - Integrate the JSCacheDB.js into your JavaScript application and use it. 
 
 An important design goal was to provide the possiblity to integrate JSCacheDB into existing applications. This makes an existing online web application an offline web application. Therefore changes to an existing database model should be minimal:
 
-- All tables require an unique primary key.
+- All tables require an unique primary key. Use a primary key constraint in your database!
 - If you want to insert new items into a table, the primary key of this table is required to be an auto-incremented integer.
 
-This is because of a common problem in database replication: How can you know that a specific key is unique, if you have no access to the database for a while?  You could use an additional origin attribute to form a multi column primary key, but this requires a lot of changes in an existing database and a running online web application. Another solution is to assign different fixed key ranges (e.g. odd and even numbers), but this can only be used for a fixed number of replications. Therefore JSCacheDB uses dynamic key ranges: It asks the server to reserve a block of primary keys for him. <sup>[1](#1)</sup>
+This is because of a common problem in database replication: How do you know that a specific key is unique, if you have no access to the database for a while? JSCacheDB solves this by reserving key ranges<sup>[1](#1)</sup> and only use reserved keys when inserting data. The server has to ensure that these keys are not used multiple times (i.e. shift the auto-increment value).
 
 JavaScript API
 --------------
-### Initialization
+### Configuration
     var database = new JSCacheDB("nameOfYourJSCacheDB");
+    database.setOnRefresh(function(store){
+      // refresh your user interface
+    });
+    database.setOnFailure(function(message,context) {
+      alert("Error: "+message);
+    });
+    database.setSyncInterval(20000);
+
+The synchronization interval....
+
+
+### Initialization
     database.open("1.17",{
           "yourFirstStore":["ID"],
           "anotherStore":["ID","anotherIndexedField"]
         },function(){
           alert("Database has been opened");
+          database.setupKeyGenerator("anotherStore",200,50);
         });
 
 The open method requires a version string and a database scheme. Optionally you can provide a callback that is called after the database has been opened.
 
-The version string is required, because you do not have direct access to the users browser and therefore you cannot alter the database scheme directly (as you would do e.g. in mySQL with ALTER TABLE). Instead you have to provide a new version string each time you alter the database scheme. If the version of the users database does not fit the given one, the database will be reinitialized to the new scheme. *WARNING:* This includes deletion of all client-side data. This is normally not a problem, because it is only a replication of the server-side data, but it also includes not yet synchronized data that otherwise would not fit to your new database scheme.
+You have to provide a new version string each time you update your database scheme. If the version of the users database does not fit the given one, the old database is deleted and will be reinitialized to the new scheme.
 
-In the database scheme there is a store for each database table you want to replicate. It has an associated array of fields for which you want to create a search index. You do not have to name each single field, but only the fields you want to be able to search for!
+In the database scheme there is a store for each database table you want to replicate. It has an associated array of fields for which you want to create a search index. The first element of the array is the required primary key.
 
-The first element of the array is a required primary key. Each store (and therefore each database table) has to have a single unique primary key. If you also want to insert new data into this table from your offline web application, this has to be an auto-incremented number (see below). If you do not want to do this, you can also use other unique fields.
+**NOTE**: You do not have to name each single field, but only the fields you want to be able to search for and the primary key! 
 
-**IMPORTANT:** If your server-side database does not have a primary key constraint on the first element of the field array, you probably would corrupt your database. 
+Last but not least you have to setup the key generator for each store in that you want to insert new objects. The key generator will request 200 (first argument) new keys as soon as there are only 50 (second argument) keys left and there is internet connection. The second number should be large enough that it is unlikely that the user inserts more new objects within one offline session.
 
 ### Getting data
-The first step is to get data from your database and caching it so that the user can still access it while being offline. If you do not want the user to write to the database while being offline, you are lucky, because you do not have to fear data corruption. Often it is ok, that the user can view the data offline, but only edit it online. 
 
     database.getAll("yourStore", function(objects) {
       for(i in objects) {
@@ -68,6 +98,15 @@ A shortcut for getting a single object by primary key is
       alert(JSON.stringify(obj));
     });
 
+### Inserting new data
+If you want to insert new data, be aware, that you have to set up the key generator first and wait for the next synchronization.
+
+    var newEntry = {};
+    newEntry.name = "Peter";
+    newEntry.address = "Shortway 15";
+    database.save("addressBook",newEntry);
+
+
 ### Updating data
 If you want to be able to modify data offline, your application has to ensure, that the data will not get inconsistent (see common pitfalls). The application only transfers the attributes of an object that was changed since the last synchronization. This allows for changing the same dataset at two parties, but not the same attribute. The one that is synchronized last wins!
 
@@ -76,13 +115,21 @@ If you want to be able to modify data offline, your application has to ensure, t
       database.save("addressBook",obj);
     });
 
-### Inserting new data
+### Deleting data
+This is not implemented, because you never know where your object is still available and if it will be used for foreign key references. Instead you should add a *invalid* attribute to your objects and do not use them if it is set. If you really can be sure that the is no valid object anymore, you can remove all objects with this flag set from the server-side database.
+
+Server-Side Interface
+---------------------
+The interface between JSCacheDB and your database is ....
+
+A sample PHP interface to a mySQL database is implemented in JSCacheDBInterface.php. 
 
 Common Pitfalls
 ---------------
 - Given you have two persons that can write to a database at the same time. If one of the persons is offline, he will not get the data changes of the other person, so your application is not able to ensure specific constraints. For example in a cinema reservation system the cinema could be overbooked, because the person being offline could insert new reservations, although the cinema is already full, but he will not notice it. In this case you could ensure, that no part can reserve more than the half of the free places without sychronization.
+- The first step is to get data from your database and caching it so that the user can still access it while being offline. If you do not want the user to write to the database while being offline, you are lucky, because you do not have to fear data corruption. Often it is ok, that the user can view the data offline, but only edit it online. 
 
-Identity Crises<a name="1"/>
----------------
+
+**[1]**<a name="1"/> Another solution to the primary key identity crisis would be to use an additional origin attribute to form a multi column primary key, but this requires a lot of changes in an existing database and a running online web application. Another solution is to assign different fixed key ranges (e.g. odd and even numbers), but this can only be used if you know how many clients you have. The implemented approach is the most flexible one, but requires an estimation of the expected utilization.
 
 
