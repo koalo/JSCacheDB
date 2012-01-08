@@ -270,7 +270,7 @@ function JSCacheDB(name) {
     // TODO READ only should be ok too
     var trans = db.transaction([store], IDBTransaction.READ_WRITE, 0);
     var objstore = trans.objectStore(store);
-    var request = objstore.get(parseInt(ID)); // TODO parseInt not ok
+    var request = objstore.get(convertIfInteger(ID));
     
     request.onsuccess = function(e) {
       callback(e.target.result);
