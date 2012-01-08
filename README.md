@@ -1,6 +1,7 @@
 JSCacheDB User Guide
 ====================
-Florian Meier <koalo@koalo.de>
+
+Make your web application offline.
 
 Introduction
 ------------
@@ -30,19 +31,19 @@ The open method requires a version string and a database scheme. Optionally you 
 
 The version string is required, because you do not have direct access to the users browser and therefore you cannot alter the database scheme directly (as you would do e.g. in mySQL with ALTER TABLE). Instead you have to provide a new version string each time you alter the database scheme. If the version of the users database does not fit the given one, the database will be reinitialized to the new scheme.
 
-WARNING: This includes deletion of all client-side data. This is normally not a problem, because it is only a replication of the server-side data, but it also includes not yet synchronized data that otherwise would not fit to your new database scheme.
+*WARNING:* This includes deletion of all client-side data. This is normally not a problem, because it is only a replication of the server-side data, but it also includes not yet synchronized data that otherwise would not fit to your new database scheme.
 
 In the database scheme there is a store for each database table you want to replicate. It has an associated array of fields for which you want to create a search index.
 
-NOTE: You do not have to name each single field, but only the fields you want to be able to search for!
+*NOTE:* You do not have to name each single field, but only the fields you want to be able to search for!
 
 The first element of the array is a required primary key. Each store (and therefore each database table) has to have a single unique primary key. If you also want to insert new data into this table from your offline web application, this has to be an auto-incremented number (see below). If you do not want to do this, you can also use other unique fields.
 
-IMPORTANT: If your server-side database does not have a primary key constraint on the first element of the field array, you probably would corrupt your database. 
+*IMPORTANT:* If your server-side database does not have a primary key constraint on the first element of the field array, you probably would corrupt your database. 
 
 ### Getting data
 The first step is to get data from your database and caching it so that the user can still access it while being offline. If you do not want the user to write to the database while being offline, you are lucky, because you do not have to fear data corruption. 
 
 Common Pitfalls
 ---------------
-: Given you have two persons that can write to a database at the same time. If one of the persons is offline, he will not get the data changes of the other person, so your application is not able to ensure specific constraints. For example in a cinema reservation system the cinema could be overbooked, because the person being offline could insert new reservations, although the cinema is already full, but he will not notice it. 
+- Given you have two persons that can write to a database at the same time. If one of the persons is offline, he will not get the data changes of the other person, so your application is not able to ensure specific constraints. For example in a cinema reservation system the cinema could be overbooked, because the person being offline could insert new reservations, although the cinema is already full, but he will not notice it. 
