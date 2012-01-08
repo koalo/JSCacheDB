@@ -6,7 +6,7 @@ function JSCacheDB(name) {
   // Configuration and other constants
   var ranges = "reserved_insertion_ranges";
   var modSuffix = "_modified";
-  var serverURL = "/pos/backend/JSCacheDB/JSCacheDBInterface.php" // TODO modifyable
+  var serverURL = "";
 
   // Initialize database reference
   var dbname = name;
@@ -69,6 +69,10 @@ function JSCacheDB(name) {
 
   this.setSyncInterval = function(milliseconds) {
     syncInterval = milliseconds;
+  }
+
+  this.setServerURL = function(url) {
+    serverURL = url;
   }
 
   this.setupKeyGenerator = function(store,blockSize,alarmThreshold) {
@@ -324,7 +328,7 @@ function JSCacheDB(name) {
     if(data != null) {
       url += '&data='+JSON.stringify(data);
     }
-    ajaxReq.open("GET", url, true);
+    ajaxReq.open("POST", url, true);
     ajaxReq.overrideMimeType("application/json");
     ajaxReq.onreadystatechange = function() {
       if(ajaxReq.readyState == 4) {

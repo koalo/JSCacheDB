@@ -48,16 +48,18 @@ JavaScript API
 --------------
 ### Configuration
     var database = new JSCacheDB("nameOfYourJSCacheDB");
-    database.setOnRefresh(function(store){
-      // refresh your user interface
-    });
     database.setOnFailure(function(message,context) {
       alert("Error: "+message);
     });
-    database.setSyncInterval(20000);
+    database.setOnRefresh(function(store){
+      // refresh your user interface
+    });
+    database.setSyncInterval(10000);
+    database.setServerURL("JSCacheDBInterface.php");
 
-The synchronization interval....
+After constructing the database object with the name of your database, you should provide a failure callback that is called if an error occurs. Furthermore there is the possibility to get informed if there is new data availible. You should refresh your user interface, but be aware, that you do not disrupt an user activity.
 
+The synchronization interval defines the time in milliseconds between two synchronizations of JSCacheDB with the server. The server URL is a path to your server-side database interface.
 
 ### Initialization
     database.open("1.17",{
@@ -120,9 +122,20 @@ This is not implemented, because you never know where your object is still avail
 
 Server-Side Interface
 ---------------------
-The interface between JSCacheDB and your database is ....
+JSCacheDB will talk to your server via periodic AJAX request. A sample PHP interface to a mySQL database is implemented in JSCacheDBInterface.php.
 
-A sample PHP interface to a mySQL database is implemented in JSCacheDBInterface.php. 
+Each POST request has a parameter `store` with the table to use and `action`. There are three actions:
+
+### get
+Returns a JSON array of all objects in this table. Executed SQL command: `SELECT`
+
+### put
+Store the object transferred as parameter `data` to the database. If the primary key already exists, an `UPDATE` is executed, otherwise an `INSERT`.
+
+### reserve
+Reserve a new key range with block size given as blockSize attribute in `data`. Return a JSON object with min set to the smallest and max set to the biggest value of the reserved range. The server has to shift the auto-increment value to max+1. 
+
+**IMPORTANT:** Other applications that write to the server have to use the auto-increment values (write NULL to the primary key field). At least for mySQL I found no possibility to ensure this at database level.
 
 Common Pitfalls
 ---------------

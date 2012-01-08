@@ -5,7 +5,8 @@ function init() {
   database.setOnFailure(function(message,context) {
     alert("Error: "+message);
   });
-  database.setSyncInterval(20000);
+  database.setSyncInterval(10000);
+  database.setServerURL("JSCacheDBInterface.php");
   database.open("1.21",{"todo":["ID","done"]},function(){
     database.setupKeyGenerator("todo",40,10);
   });

@@ -11,6 +11,8 @@ else {
 }
 $dbname = 'cinema';
 
+// TODO dynamic primary key
+
 try {
   $dbh = new PDO("mysql:host=$hostname;dbname=$dbname", $username, $password);
   //$dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING); 
@@ -32,6 +34,21 @@ function handleRequest($action, $store, $data, $dbh) {
   $data = json_decode($data);
 
   switch($action) {
+    case "get":
+      $where = "";
+      if(isset($data->timestamp) > 0) {
+        $where = " WHERE updated_at > ".intval($data->timestamp);
+      }
+
+      $stmt = $dbh->query("SELECT * FROM $store".$where);
+      if($stmt) {
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+      }
+      else {
+        print_r($dbh->errorInfo());
+      }
+      break;
+
     case "put":
       // check if all column names are sanitized
       foreach($data as $key => $value) {
@@ -88,21 +105,6 @@ function handleRequest($action, $store, $data, $dbh) {
 
       echo json_encode($result);
 
-      break;
-
-    case "get":
-      $where = "";
-      if(isset($data->timestamp) > 0) {
-        $where = " WHERE updated_at > ".intval($data->timestamp);
-      }
-
-      $stmt = $dbh->query("SELECT * FROM $store".$where);
-      if($stmt) {
-        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
-      }
-      else {
-        print_r($dbh->errorInfo());
-      }
       break;
 
     case "reserve":
