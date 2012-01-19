@@ -1,5 +1,5 @@
 <?php
-if(true) {
+if(false) {
   $hostname = 'localhost';
   $username = 'cinema';
   $password = 'cinema';
@@ -31,7 +31,7 @@ function handleRequest($action, $store, $data, $dbh) {
     return;
   }
 
-  $data = json_decode($data);
+  $data = json_decode(stripslashes($data));
 
   switch($action) {
     case "get":

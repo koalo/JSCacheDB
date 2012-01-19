@@ -9,7 +9,7 @@ JSCacheDB provides a data source for offline web applications. Offline means, th
 
 JSCacheDB can be used for web applications that rely on a server side database (e.g. PostgreSQL, mySQL...). The task of this tool is to automatically replicate the data to a client-side database (IndexedDB). This database can then be accessed by a client-side JavaScript application. The data stored in JSCacheDB will also survive a shutdown of the users browser, because the client-side database is persistent. Together with the HTML 5 application cache you can create web applications that do not only survive short connectivity disruptions, but can be used everywhere at any time regardless of internet connectivity.
 
-You have to look closely at your use-cases in order to prevent data corruption. If two parties can write to the database at the same time, but one could be offline, it could work on an old state of the data. Your application has to ensure, that changes to an old data state would seamlessly integrate into the new data state at the time of synchronization. A few common pitfalls are described in a seperate section.
+You have to look closely at your use-cases in order to prevent data corruption. If two parties can write to the database at the same time, but one could be offline, it could work on an old state of the data. Your application has to ensure, that changes to an old data state would seamlessly integrate into the new data state at the time of synchronization. For more information refer to the last section.
 
 Basic Concepts
 --------------
@@ -138,10 +138,10 @@ Reserve a new key range with block size given as blockSize attribute in `data`. 
 
 **IMPORTANT:** Other applications that write to the server have to use the auto-increment values (write NULL to the primary key field). At least for mySQL I found no possibility to ensure this at database level.
 
-Common Pitfalls
----------------
+Think about the replication
+---------------------------
 - Given you have two persons that can write to a database at the same time. If one of the persons is offline, he will not get the data changes of the other person, so your application is not able to ensure specific constraints. For example in a cinema reservation system the cinema could be overbooked, because the person being offline could insert new reservations, although the cinema is already full, but he will not notice it. In this case you could ensure, that no part can reserve more than the half of the free places without sychronization.
-- The first step is to get data from your database and caching it so that the user can still access it while being offline. If you do not want the user to write to the database while being offline, you are lucky, because you do not have to fear data corruption. Often it is ok, that the user can view the data offline, but only edit it online. 
+- If you do not want the user to write to the database while being offline, you are lucky, because you do not have to fear data corruption. Often it is ok, that the user can view the data offline, but only edit it online. 
 
 
 **[1]**<a name="1"/> Another solution to the primary key identity crisis would be to use an additional origin attribute to form a multi column primary key, but this requires a lot of changes in an existing database and a running online web application. Another solution is to assign different fixed key ranges (e.g. odd and even numbers), but this can only be used if you know how many clients you have. The implemented approach is the most flexible one, but requires an estimation of the expected utilization.

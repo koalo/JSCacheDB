@@ -80,7 +80,6 @@ function JSCacheDB(name) {
 
     request.onupgradeneeded = function(e) {  
       // TODO do we need this?
-      alert("onupgradeneeded");
       if(db.objectStoreNames.contains(ranges)) {
         db.deleteObjectStore(ranges);
       }
@@ -230,15 +229,16 @@ function JSCacheDB(name) {
         var request = trans.objectStore(store).put(object);
 
         request.onsuccess = function(e) {
-          onrefresh(store);
           var modTrans = db.transaction([store+modSuffix], 
               IDBTransaction.READ_WRITE, 0);
           var requestMod = modTrans.objectStore(store+modSuffix).add(oldObject);
           requestMod.onerror = function(e) {
             // no error: object was already modified
+            onrefresh(store);
           };
 
           requestMod.onsuccess = function(e) {
+            onrefresh(store);
           }
         };
 
@@ -318,13 +318,42 @@ function JSCacheDB(name) {
     query(store,keyRange,null,callback);
   }
 
+  
+  this.getSingleSyncState = function(store,callback) {
+    this.count(storeName+modSuffix,function(count){
+      callback(count,store+": "+count);
+    });
+  }
+
+  this.getSyncState = function(callback) {
+    var results = [];
+    var sum = 0;
+    var requests = 0;
+    var all = false;
+    for(storeName in db.schema) {
+      requests++;
+      this.getSingleSyncState(storeName,function(count,text) {
+        sum += count;
+        if(count > 0) {
+          results.push(text);
+        }
+
+        requests--;
+        if(requests == 0 && all) {
+          callback((sum == 0),results.join("\n"));
+        }
+      });
+    }
+    all = true;
+  }
+
   function ajaxRequest(action,store,data,callback) {
     var ajaxReq = getXmlHttpRequestObject();
     var url = serverURL+'?action='+action+'&store='+store;
     if(data != null) {
-      url += '&data='+JSON.stringify(data);
+      url += '&data='+encodeURIComponent(JSON.stringify(data));
     }
-    ajaxReq.open("POST", url, true);
+    ajaxReq.open("GET", url, true);
     ajaxReq.overrideMimeType("application/json");
     ajaxReq.onreadystatechange = function() {
       if(ajaxReq.readyState == 4) {
